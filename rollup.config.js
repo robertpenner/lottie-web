@@ -1,7 +1,36 @@
+import path from 'path';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import { terser } from 'rollup-plugin-terser';
 import babel from '@rollup/plugin-babel';
 import {version} from './package.json'
+
+// Build-time module substitution (same idea as lottie-web's *WorkerOverride
+// files). Each entry is [suffixToMatch, replacementModulePath]; when an import
+// specifier ends with the suffix, it resolves to the replacement instead.
+const aliasModules = (aliases) => {
+  return {
+    name: 'alias-modules',
+    resolveId(source) {
+      for (var i = 0; i < aliases.length; i += 1) {
+        if (source.endsWith(aliases[i][0])) {
+          return path.resolve(aliases[i][1]);
+        }
+      }
+      return null;
+    },
+  };
+};
+
+// Compositor-Safe Lottie Profile carve-out: text/image layers are out of the
+// profile, so swap their canvas elements for the no-op NullElement and replace
+// the font manager with a stub. This drops the text, font and image code paths.
+const cslpAliases = [
+  ['/SVGRenderer', 'player/js/renderers/SVGRendererCreateNullOnly.js'],
+  ['canvasElements/CVTextElement', 'player/js/elements/NullElement.js'],
+  ['canvasElements/CVImageElement', 'player/js/elements/NullElement.js'],
+  ['utils/FontManager', 'player/js/utils/FontManagerStub.js'],
+  ['utils/imagePreloader', 'player/js/utils/ImagePreloaderStub.js'],
+];
 
 const injectVersion = (options = {}) => {
   return {
@@ -157,6 +186,14 @@ const builds = [
     esm: false,
     worker: true,
   },
+  {
+    input: 'player/js/modules/canvas_light_worker_cslp.js',
+    dest: `${destinationBuildFolder}`,
+    file: 'lottie_light_canvas_worker_cslp.min.js',
+    esm: false,
+    worker: true,
+    cslp: true,
+  },
 ];
 
 const plugins = [
@@ -220,10 +257,17 @@ const ESMModule = {
 };
 
 const selectPlugins = (build) => {
+  var selected;
   if (build.worker) {
-    return build.skipTerser ? workerPlugins : workerPluginsWithTerser;
+    selected = build.skipTerser ? workerPlugins : workerPluginsWithTerser;
+  } else {
+    selected = build.skipTerser ? plugins : pluginsWithTerser;
   }
-  return build.skipTerser ? plugins : pluginsWithTerser;
+  if (build.cslp) {
+    // Alias must run before nodeResolve, so prepend it.
+    return [aliasModules(cslpAliases), ...selected];
+  }
+  return selected;
 };
 
 const exports = builds.reduce((acc, build) => {
