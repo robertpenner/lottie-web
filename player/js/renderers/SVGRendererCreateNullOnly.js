@@ -2,7 +2,7 @@
 // borrow `createNull` without dragging in the entire SVG element tree
 // (SVGCompElement -> SVGShapeElement/SVGTextElement/... -> TextProperty ->
 // FontManager). Canvas builds never render via SVG; they only reuse this one
-// method. Aliasing `./SVGRenderer` to this stub in the CSLP build drops the
+// method. Aliasing `./SVGRenderer` to this stub in the CSL build drops the
 // whole SVG element tree and the text/font code it transitively imports.
 import NullElement from '../elements/NullElement';
 

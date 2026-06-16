@@ -21,10 +21,10 @@ const aliasModules = (aliases) => {
   };
 };
 
-// Compositor-Safe Lottie Profile carve-out: text/image layers are out of the
-// profile, so swap their canvas elements for the no-op NullElement and replace
-// the font manager with a stub. This drops the text, font and image code paths.
-const cslpAliases = [
+// Compositor-Safe Lottie (CSL) carve-out: text/image layers are out of scope,
+// so swap their canvas elements for the no-op NullElement and replace the font
+// manager with a stub. This drops the text, font and image code paths.
+const cslAliases = [
   ['/SVGRenderer', 'player/js/renderers/SVGRendererCreateNullOnly.js'],
   ['canvasElements/CVTextElement', 'player/js/elements/NullElement.js'],
   ['canvasElements/CVImageElement', 'player/js/elements/NullElement.js'],
@@ -187,12 +187,12 @@ const builds = [
     worker: true,
   },
   {
-    input: 'player/js/modules/canvas_light_worker_cslp.js',
+    input: 'player/js/modules/canvas_light_worker_csl.js',
     dest: `${destinationBuildFolder}`,
-    file: 'lottie_light_canvas_worker_cslp.min.js',
+    file: 'lottie_light_canvas_worker_csl.min.js',
     esm: false,
     worker: true,
-    cslp: true,
+    csl: true,
   },
 ];
 
@@ -263,9 +263,9 @@ const selectPlugins = (build) => {
   } else {
     selected = build.skipTerser ? plugins : pluginsWithTerser;
   }
-  if (build.cslp) {
+  if (build.csl) {
     // Alias must run before nodeResolve, so prepend it.
-    return [aliasModules(cslpAliases), ...selected];
+    return [aliasModules(cslAliases), ...selected];
   }
   return selected;
 };

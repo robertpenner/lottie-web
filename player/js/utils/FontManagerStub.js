@@ -1,6 +1,6 @@
 // Minimal no-op FontManager for builds that exclude text rendering (e.g. the
-// Compositor-Safe Lottie Profile build). `BaseRenderer.setupGlobalData` always
-// constructs a FontManager and calls `addChars`/`addFonts`, so a CSLP build
+// Compositor-Safe Lottie (CSL) build). `BaseRenderer.setupGlobalData` always
+// constructs a FontManager and calls `addChars`/`addFonts`, so a CSL build
 // that aliases away `CVTextElement` still needs a constructor with that surface
 // — but none of the heavy font measurement / glyph machinery. `isLoaded` is
 // true up front so playback never waits on font loading.
