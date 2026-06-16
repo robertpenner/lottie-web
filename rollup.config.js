@@ -34,6 +34,9 @@ const cslAliases = [
   ['/SVGRenderer', 'player/js/renderers/SVGRendererCreateNullOnly.js'],
   ['canvasElements/CVTextElement', 'player/js/elements/NullElement.js'],
   ['canvasElements/CVImageElement', 'player/js/elements/NullElement.js'],
+  ['elements/FootageElement', 'player/js/elements/NullElement.js'],
+  ['elements/AudioElement', 'player/js/elements/NullElement.js'],
+  ['utils/audio/AudioController', 'player/js/utils/audio/AudioControllerStub.js'],
   ['utils/FontManager', 'player/js/utils/FontManagerStub.js'],
   ['utils/imagePreloader', 'player/js/utils/ImagePreloaderStub.js'],
 ];
