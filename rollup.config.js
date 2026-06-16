@@ -135,6 +135,21 @@ const builds = [
     esm: false,
     skipTerser: true,
   },
+  {
+    input: 'player/js/modules/canvas_light_worker.js',
+    dest: `${destinationBuildFolder}`,
+    file: 'lottie_light_canvas_worker.min.js',
+    esm: false,
+    worker: true,
+  },
+  {
+    input: 'player/js/modules/canvas_light_worker.js',
+    dest: `${destinationBuildFolder}`,
+    file: 'lottie_light_canvas_worker.js',
+    esm: false,
+    skipTerser: true,
+    worker: true,
+  },
 ];
 
 const plugins = [
@@ -150,6 +165,23 @@ const plugins = [
 ];
 const pluginsWithTerser = [
   ...plugins,
+  terser(),
+]
+
+// Worker builds install their own DOM shim at runtime, so they must NOT be
+// gated by `addDocumentValidation` (that guard short-circuits the whole bundle
+// when `document` is absent — exactly the worker case, before the shim runs).
+const workerPlugins = [
+  nodeResolve(),
+  babel({
+    babelHelpers: 'runtime',
+    skipPreflightCheck: true,
+  }),
+  injectVersion(),
+  addNavigatorValidation(),
+];
+const workerPluginsWithTerser = [
+  ...workerPlugins,
   terser(),
 ]
 
@@ -180,11 +212,18 @@ const ESMModule = {
   ],
 };
 
+const selectPlugins = (build) => {
+  if (build.worker) {
+    return build.skipTerser ? workerPlugins : workerPluginsWithTerser;
+  }
+  return build.skipTerser ? plugins : pluginsWithTerser;
+};
+
 const exports = builds.reduce((acc, build) => {
   const builds = [];
   builds.push({
     ...UMDModule,
-    plugins: !build.skipTerser ? pluginsWithTerser : plugins,
+    plugins: selectPlugins(build),
     input: build.input,
     output: {
       ...UMDModule.output,
