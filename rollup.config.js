@@ -2,7 +2,13 @@ import path from 'path';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
 import { terser } from 'rollup-plugin-terser';
 import babel from '@rollup/plugin-babel';
+import { visualizer } from 'rollup-plugin-visualizer';
 import {version} from './package.json'
+
+// Set ANALYZE=1 to emit a treemap of the CSL bundle's module composition
+// (build/analysis/csl.html) and skip every other build for a fast, focused run.
+// e.g. `ANALYZE=1 npx rollup -c` or `npm run analyze:csl`.
+const ANALYZE = !!process.env.ANALYZE;
 
 // Build-time module substitution (same idea as lottie-web's *WorkerOverride
 // files). Each entry is [suffixToMatch, replacementModulePath]; when an import
@@ -265,12 +271,28 @@ const selectPlugins = (build) => {
   }
   if (build.csl) {
     // Alias must run before nodeResolve, so prepend it.
-    return [aliasModules(cslAliases), ...selected];
+    const cslPlugins = [aliasModules(cslAliases), ...selected];
+    if (ANALYZE) {
+      // visualizer must run last so it measures the final (tersed) chunk.
+      cslPlugins.push(visualizer({
+        filename: `${destinationBuildFolder}../analysis/csl.html`,
+        title: 'Compositor-Safe Lottie (CSL) bundle',
+        template: 'treemap',
+        gzipSize: true,
+        brotliSize: true,
+        sourcemap: false,
+      }));
+    }
+    return cslPlugins;
   }
   return selected;
 };
 
-const exports = builds.reduce((acc, build) => {
+// When analyzing, build only the minified CSL bundle so the run is fast and the
+// treemap reflects exactly what ships.
+const selectedBuilds = ANALYZE ? builds.filter((b) => b.csl) : builds;
+
+const exports = selectedBuilds.reduce((acc, build) => {
   const builds = [];
   builds.push({
     ...UMDModule,
@@ -335,4 +357,4 @@ const workerApiBuilds = [
   },
 ];
 
-export default exports.concat(workerApiBuilds);
+export default ANALYZE ? exports : exports.concat(workerApiBuilds);
