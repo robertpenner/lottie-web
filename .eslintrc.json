@@ -42,5 +42,14 @@
         "vars-on-top": "off",
         "no-use-before-define": "off",
         "-------": "off"
-    }
+    },
+    "overrides": [
+        {
+            "files": ["player/js/modules/canvas_light_worker_api.js"],
+            "parserOptions": {
+                "ecmaVersion": 2020,
+                "sourceType": "module"
+            }
+        }
+    ]
 }

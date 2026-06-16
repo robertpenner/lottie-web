@@ -12645,7 +12645,179 @@
   ShapeModifiers.registerModifier('zz', ZigZagModifier);
   ShapeModifiers.registerModifier('op', OffsetPathModifier);
 
+  /**
+   * Worker-side message protocol for the light canvas worker player.
+   *
+   * Runs inside the Web Worker. It receives a transferred `OffscreenCanvas` plus
+   * animation data, drives `lottie.loadAnimation` against the canvas 2D context,
+   * and relays method calls / events over `postMessage`. Pair it with the
+   * `LottieCanvasWorker` main-thread driver (canvas_light_worker_api.js).
+   *
+   * Animations are keyed by `id` so a single worker can host several canvases.
+   */
+  function setupCanvasWorker(lottie) {
+    if (typeof self === 'undefined' || typeof self.postMessage !== 'function') {
+      return;
+    }
+    var animations = {};
+    var subscriptions = {};
+    function post(message) {
+      self.postMessage(message);
+    }
+    function withAnimation(id, fn) {
+      var entry = animations[id];
+      if (entry) {
+        fn(entry.animation, entry);
+      }
+    }
+    function handleLoad(data) {
+      var id = data.id;
+      var canvas = data.canvas;
+      var cfg = data.config || {};
+      var animation = lottie.loadAnimation({
+        renderer: 'canvas',
+        loop: cfg.loop,
+        autoplay: cfg.autoplay,
+        animationData: data.animationData,
+        rendererSettings: {
+          context: canvas.getContext('2d'),
+          clearCanvas: true
+        }
+      });
+      animations[id] = {
+        animation: animation,
+        canvas: canvas
+      };
+      if (cfg.speed !== undefined && cfg.speed !== null) {
+        animation.setSpeed(cfg.speed);
+      }
+      if (cfg.direction !== undefined && cfg.direction !== null) {
+        animation.setDirection(cfg.direction);
+      }
+      if (cfg.segment) {
+        animation.playSegments(cfg.segment, true);
+      }
+      post({
+        type: 'ready',
+        id: id
+      });
+    }
+    var handlers = {
+      load: handleLoad,
+      play: function play(d) {
+        withAnimation(d.id, function (a) {
+          a.play();
+        });
+      },
+      pause: function pause(d) {
+        withAnimation(d.id, function (a) {
+          a.pause();
+        });
+      },
+      stop: function stop(d) {
+        withAnimation(d.id, function (a) {
+          a.stop();
+        });
+      },
+      setSpeed: function setSpeed(d) {
+        withAnimation(d.id, function (a) {
+          a.setSpeed(d.speed);
+        });
+      },
+      setDirection: function setDirection(d) {
+        withAnimation(d.id, function (a) {
+          a.setDirection(d.direction);
+        });
+      },
+      setLoop: function setLoop(d) {
+        withAnimation(d.id, function (a) {
+          a.setLoop(d.loop);
+        });
+      },
+      goToAndStop: function goToAndStop(d) {
+        withAnimation(d.id, function (a) {
+          a.goToAndStop(d.value, d.isFrame);
+        });
+      },
+      goToAndPlay: function goToAndPlay(d) {
+        withAnimation(d.id, function (a) {
+          a.goToAndPlay(d.value, d.isFrame);
+        });
+      },
+      playSegments: function playSegments(d) {
+        withAnimation(d.id, function (a) {
+          a.playSegments(d.segments, d.forceFlag);
+        });
+      },
+      setSubframe: function setSubframe(d) {
+        withAnimation(d.id, function (a) {
+          a.setSubframe(d.useSubFrames);
+        });
+      },
+      resize: function resize(d) {
+        withAnimation(d.id, function (a, entry) {
+          if (d.width) {
+            entry.canvas.width = d.width;
+          }
+          if (d.height) {
+            entry.canvas.height = d.height;
+          }
+          a.resize();
+        });
+      },
+      subscribe: function subscribe(d) {
+        withAnimation(d.id, function (a) {
+          var subs = subscriptions[d.id] || (subscriptions[d.id] = {});
+          if (subs[d.name]) {
+            return;
+          }
+          var handler = function handler(args) {
+            post({
+              type: 'event',
+              id: d.id,
+              name: d.name,
+              args: args
+            });
+          };
+          subs[d.name] = handler;
+          a.addEventListener(d.name, handler);
+        });
+      },
+      unsubscribe: function unsubscribe(d) {
+        var subs = subscriptions[d.id];
+        if (!subs || !subs[d.name]) {
+          return;
+        }
+        withAnimation(d.id, function (a) {
+          a.removeEventListener(d.name, subs[d.name]);
+          delete subs[d.name];
+        });
+      },
+      destroy: function destroy(d) {
+        withAnimation(d.id, function (a) {
+          a.destroy();
+        });
+        delete animations[d.id];
+        delete subscriptions[d.id];
+        post({
+          type: 'destroyed',
+          id: d.id
+        });
+      }
+    };
+    self.addEventListener('message', function (evt) {
+      var data = evt.data;
+      if (data && handlers[data.type]) {
+        handlers[data.type](data);
+      }
+    });
+  }
+
   // Light canvas player, prepared to run inside a Web Worker rendering to a
+
+  // Install the message protocol so a `LottieCanvasWorker` main-thread driver can
+  // drive this player over postMessage (load / play / events / etc.).
+  setupCanvasWorker(lottie);
 
   return lottie;
 

@@ -258,4 +258,37 @@ const exports = builds.reduce((acc, build) => {
   acc = acc.concat(builds);
   return acc;
 }, []);
-export default exports;
+
+// Main-thread driver for the light canvas worker player (`LottieCanvasWorker`).
+// Shipped as ESM + CJS co-located with the worker bundle in `build/player/`, so
+// the default `new URL('./lottie_light_canvas_worker.js', import.meta.url)`
+// resolution finds the worker as a sibling file. No UMD: the default worker URL
+// relies on `import.meta.url`, which only exists in module formats.
+const workerApiInput = 'player/js/modules/canvas_light_worker_api.js';
+const workerApiPlugins = [nodeResolve(), injectVersion(), terser()];
+const workerApiBuilds = [
+  {
+    input: workerApiInput,
+    plugins: workerApiPlugins,
+    treeshake: false,
+    output: {
+      format: 'esm',
+      exports: 'named',
+      sourcemap: false,
+      file: `${destinationBuildFolder}lottie_light_canvas_worker_api.mjs`,
+    },
+  },
+  {
+    input: workerApiInput,
+    plugins: workerApiPlugins,
+    treeshake: false,
+    output: {
+      format: 'cjs',
+      exports: 'named',
+      sourcemap: false,
+      file: `${destinationBuildFolder}lottie_light_canvas_worker_api.cjs`,
+    },
+  },
+];
+
+export default exports.concat(workerApiBuilds);

@@ -3,5 +3,10 @@
 // installed before any renderer module-init code runs (ES import order).
 import '../worker_dom_shim';
 import lottie from './canvas_light';
+import setupCanvasWorker from '../worker_canvas_bootstrap';
+
+// Install the message protocol so a `LottieCanvasWorker` main-thread driver can
+// drive this player over postMessage (load / play / events / etc.).
+setupCanvasWorker(lottie);
 
 export default lottie;
