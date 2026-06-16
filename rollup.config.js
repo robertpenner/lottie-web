@@ -150,6 +150,13 @@ const builds = [
     skipTerser: true,
     worker: true,
   },
+  {
+    input: 'player/js/modules/canvas_light_worker_nomod.js',
+    dest: `${destinationBuildFolder}`,
+    file: 'lottie_light_canvas_worker_nomod.min.js',
+    esm: false,
+    worker: true,
+  },
 ];
 
 const plugins = [
